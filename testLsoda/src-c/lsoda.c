@@ -2797,13 +2797,13 @@ static void fex(double t, double *y, double *ydot, void *data)
   ydot[0] = 1.0E4 * y[1] * y[2] - .04E0 * y[0];
   ydot[2] = 3.0E7 * y[1] * y[1];
   ydot[1] = -1.0 * (ydot[0] + ydot[2]);
-  ydot[1] = ydot[0];
+  ydot[3] = -y[1];
 }
 
 int main(void)
 {
   double          rwork1, rwork5, rwork6, rwork7;
-  double          atol[4], rtol[4], t, tout, y[5];
+  double          atol[5], rtol[5], t, tout, y[5];
   int             iwork1, iwork2, iwork5, iwork6, iwork7, iwork8, iwork9;
   int             neq = 3;
   int             itol, itask, istate, iopt, jt, iout;
