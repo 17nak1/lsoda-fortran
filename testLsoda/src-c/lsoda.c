@@ -2787,9 +2787,9 @@ void n_lsoda_terminate(void)
   init = 0;
 }
 
-/*************
+/***************
  * example.c *
- *************/
+ ****************/
 
 #ifdef _LSODA_MAIN
 static void fex(double t, double *y, double *ydot, void *data)
