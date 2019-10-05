@@ -35,7 +35,7 @@ let paramsFixed =[Index.p, Index.delta, Index.mu_e, Index.mu_ql, Index.mu_el, In
 let paramsNotrans = [].concat(paramsFixed)              
 let ParamSetFile, paramProf
 if (run === 1) {
-  ParamSetFile = "./highDiff.csv" 
+  ParamSetFile = "../data/highDiff.csv" 
   paramProf = null 
 } else {
   ParamSetFile = `ParamSet_run${run}.csv`    

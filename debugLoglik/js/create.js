@@ -18,7 +18,7 @@ create.covars = function(startTime=1991, endTime=2016, stepsize=0.005) {
     x = (i - startTime) * 365
     time.push(Number(x.toFixed(6)))
   }
-  let d = fs.readFileSync("./data/SzombathelyTempDaily1901to2015Monthly.csv").toString()
+  let d = fs.readFileSync("../data/SzombathelyTempDaily1901to2015Monthly.csv").toString()
   let data = [], data1 = []
   let lines = d.split('\n')
   for (let i = 0; i < lines.length - 1; i++) {
@@ -53,7 +53,7 @@ create.dataset = function(startTime=1991, endTime=2016) {
     }
   }
 
-  let d = fs.readFileSync("./data/170705PseudoData.csv").toString()  
+  let d = fs.readFileSync("../data/170705PseudoData.csv").toString()  
   let lines = d.split('\n')
   for (let i = 1; i < lines.length - 1; i++) {
     data.push(lines[i].split(','))
