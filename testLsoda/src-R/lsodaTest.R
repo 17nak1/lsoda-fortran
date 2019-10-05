@@ -10,7 +10,7 @@ lsexamp <- function(t, y, p) {
     yd1 <- -k1 * y[1] + k2 * y[2]*y[3]
     yd3 <- k3 * y[2]^2
     yd2 <- -yd1-yd3
-    yd4 <- y[1]
+    yd4 <- -y[1]
     list(c(yd1, yd2, yd3,yd4))
   })
 }
