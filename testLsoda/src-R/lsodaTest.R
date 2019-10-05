@@ -2,7 +2,7 @@ library(deSolve)
 parms   <- c(k1 = 0.04, k2 = 1e4, k3 = 3e7)
 my.atol <- c(1e-6,  1e-6,  1e-6, 1e-6)
 times <- c(0)
-for(i in 2:10) {
+for(i in 2:11) {
   times[i] = .4 * 10 ^(i-2)
 }
 lsexamp <- function(t, y, p) {
