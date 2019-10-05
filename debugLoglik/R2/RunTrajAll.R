@@ -42,7 +42,7 @@ source("ModelSnippet.R")
 run = 1
 # for (run in runs) {
   if (run==1) {
-    ParamSetFile <- paste0("highDiff.csv")
+    ParamSetFile <- paste0("test2.csv")
     param.prof <- NULL  
   } else {
     ParamSetFile <- paste0("ParamSet_run",run,".csv")    
@@ -142,4 +142,8 @@ run = 1
   }
   currentset$LogLik
   write.csv(currentset,file=paste0("TBE_job", job, ".csv"),row.names=FALSE)    
+  setwd("~/Git/lsoda-fortran/debugLoglik/compare")
+  for(i in 1:14) {
+    write.csv(signif(sets.traj@states[i,],7),paste0("states",i,".csv"))
+  }
   setwd(mainDir)
