@@ -150,15 +150,6 @@ function traj_match (data, covarTime, covarTemperature, params, times, t0, index
       aa.push([i , simHarranged[i]])
     }
     
-  //   const createCsvWriter = require('csv-writer').createArrayCsvWriter;
-  // const csvWriter = createCsvWriter({
-  //   header: [],
-  //   path: './state.csv'
-  // })   
-  // csvWriter.writeRecords(aa)
-  //   .then(() => {
-  //   console.log('...Done')
-  // })
     for (let i = 0; i < simHarranged.length; i++) {
       likvalue = snippet.dObs(params[Index.obsprob], simHarranged[i], data[i][1], 1)//;ar.push([likvalue])
       loglik = loglik + likvalue
@@ -181,6 +172,7 @@ function integrate (params, times, deltaT, covarTime, covarTemperature) {
   let buffer = Module._malloc(lengthBuffer * nByte)// pointer to an empty array to carry results from C to JS
 
   // Send covars' columns to C
+  let covarTimeLength = covarTime.length;
   let strArr1 = covarTime;
   let strArr2 = covarTemperature;
   let lengthx = strArr1.length;
@@ -197,7 +189,7 @@ function integrate (params, times, deltaT, covarTime, covarTemperature) {
       Module.setValue(ptrTimes + i * 8, strArr3[i], 'double');
   }
 
-  lsodaException = lsodaTem(lengthBuffer, buffer,ptrTimes, ptrCovarTime,ptrCovarData, ...N, ...params, deltaT)
+  lsodaException = lsodaTem(lengthBuffer, buffer,ptrTimes, ptrCovarTime,ptrCovarData, ...N, ...params, covarTimeLength)
   for (var i = 0; i < lengthBuffer; i++) {
     arr.push(Module.getValue(buffer+i*nByte, 'double'))
   }
