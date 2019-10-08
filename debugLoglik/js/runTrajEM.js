@@ -24,6 +24,7 @@ let startTime = 1991
 let endTime = 2008
 let estIcstart = [0] // Are there no initial conditions given? 0-Given, 1-No, 2-TrajMatch
 let run = 1; 
+let t0 = 0;
 
 
 // Parameters that is consider always fixed
@@ -35,7 +36,7 @@ let paramsFixed =[Index.p, Index.delta, Index.mu_e, Index.mu_ql, Index.mu_el, In
 let paramsNotrans = [].concat(paramsFixed)              
 let ParamSetFile, paramProf
 if (run === 1) {
-  ParamSetFile = "../data/TBE_all.csv" 
+  ParamSetFile = "../data/ParamSet_TBE3.csv" 
   paramProf = null 
 } else {
   ParamSetFile = `ParamSet_run${run}.csv`    
@@ -100,14 +101,13 @@ for (let i = 0; i < covars.length; i++) {
   covarTime.push(covars[i][0])
   covarTemperature.push(covars[i][1])
 }
-let t0 = 0;
 let data = create.dataset(startTime, endTime)
 let times = []
 for (let i = 0; i < data.length; i++) {
   times.push(data[i][0])
 }
 /**************************************************************************************************************************************************/
-function traj_match (data, covarTime, covarTemperature, params, times, index, place) {
+function traj_match (data, covarTime, covarTemperature, params, times, t0, index, place) {
   let deltaT = (1 / 52) * 365
   var estimated = []
   
@@ -142,23 +142,23 @@ function traj_match (data, covarTime, covarTemperature, params, times, index, pl
     // Return parameters' scale to original
     model.fromEstimationScale(params, logTrans, logitTrans)
     // console.log(covars[0])
-    var simH = integrate(params, times, deltaT,covarTime, covarTemperature);console.log(simH.length, simH[14],simH[simH.length-2])
-    simHarranged[0] = simH[0]
+    var simH = integrate(params, times, deltaT,covarTime, covarTemperature)
+    simHarranged[0] = simH[t0]
     var aa = [[0,0]]
     for ( let i = 1; i < simH.length; i++) {
-      simHarranged[i] = simH[i] - simH[i - 1];console.log(simHarranged[i])
+      simHarranged[i] = simH[i] - simH[i - 1]
       aa.push([i , simHarranged[i]])
     }
     
-    const createCsvWriter = require('csv-writer').createArrayCsvWriter;
-  const csvWriter = createCsvWriter({
-    header: [],
-    path: './state.csv'
-  })   
-  csvWriter.writeRecords(aa)
-    .then(() => {
-    console.log('...Done')
-  })
+  //   const createCsvWriter = require('csv-writer').createArrayCsvWriter;
+  // const csvWriter = createCsvWriter({
+  //   header: [],
+  //   path: './state.csv'
+  // })   
+  // csvWriter.writeRecords(aa)
+  //   .then(() => {
+  //   console.log('...Done')
+  // })
     for (let i = 0; i < simHarranged.length; i++) {
       likvalue = snippet.dObs(params[Index.obsprob], simHarranged[i], data[i][1], 1)//;ar.push([likvalue])
       loglik = loglik + likvalue
@@ -216,7 +216,7 @@ function main() {
       params.push(Number(fullset[count][i]))
     }
     try{
-      result = traj_match (data, covarTime, covarTemperature, params, times, index, place);   
+      result = traj_match (data, covarTime, covarTemperature, params, times, t0, index, place);   
       resultSet.push(result);
     }
     catch(e) {
