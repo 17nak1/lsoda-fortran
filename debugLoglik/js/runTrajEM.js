@@ -95,7 +95,7 @@ for (let i = 0; i < lines.length; i++) {
 }
 
 // Generate covars and data  
-let covars = create.covars(startTime, endTime, dt);console.log(covars.length)
+let covars = create.covars(startTime, endTime, dt)
 let covarTime = [], covarTemperature = []
 for (let i = 0; i < covars.length; i++) {
   covarTime.push(covars[i][0])
@@ -110,12 +110,10 @@ for (let i = 0; i < data.length; i++) {
 function traj_match (data, covarTime, covarTemperature, params, times, t0, index, place) {
   let deltaT = (1 / 52) * 365
   var estimated = []
-  console.log(paramsFixed)
   // Index of parameters that need to be transfered
   let temp = model.createPompModel(data, covars, t0 = 0, dt = 0.005, paramsFixed)
   let logTrans = temp[0]
   let logitTrans = temp[1]
-  console.log(temp)
   
   // Change the parameters' scale 
   model.toEstimationScale(params, logTrans, logitTrans)
