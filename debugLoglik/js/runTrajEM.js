@@ -28,7 +28,7 @@ let t0 = 0;
 
 
 // Parameters that is consider always fixed
-let paramsIcFixed = snippet.statenames()
+let paramsIcFixed = []//snippet.statenames()
 let paramsFixed =[Index.p, Index.delta, Index.mu_e, Index.mu_ql, Index.mu_el, Index.mu_qn, Index.mu_en, Index.mu_qa, Index.mu_ea,
           Index.mu_h, Index.beta_nh, Index.beta_hn, Index.beta_hl, Index.alpha, Index.c, Index.Tf, Index.gamma, ...paramsIcFixed]
 
@@ -110,11 +110,12 @@ for (let i = 0; i < data.length; i++) {
 function traj_match (data, covarTime, covarTemperature, params, times, t0, index, place) {
   let deltaT = (1 / 52) * 365
   var estimated = []
-  
+  console.log(paramsFixed)
   // Index of parameters that need to be transfered
-  let temp = model.createPompModel(data, covars, t0 = 0, dt = 0.005, paramsNotrans)
+  let temp = model.createPompModel(data, covars, t0 = 0, dt = 0.005, paramsFixed)
   let logTrans = temp[0]
   let logitTrans = temp[1]
+  console.log(temp)
   
   // Change the parameters' scale 
   model.toEstimationScale(params, logTrans, logitTrans)
@@ -161,39 +162,45 @@ function traj_match (data, covarTime, covarTemperature, params, times, t0, index
 }
  //* ODE solver
 function integrate (params, times, deltaT, covarTime, covarTemperature) {
+  let lsodaException = 0
   let arr = []
-  let count
-  let N = snippet.rInit(params)
-    
-  let inputArray = Array(42).fill('number') 
-  let lsodaTem = Module.cwrap('run_me', "number", inputArray);
+  let buffer
+  let N = snippet.rInit(params)  
+  let inputArray = Array(40).fill('number')
   let nByte = 8
-  let lengthBuffer = times.length// one more because of y[t0]
-  let buffer = Module._malloc(lengthBuffer * nByte)// pointer to an empty array to carry results from C to JS
+  let lengthBuffer = times.length  
 
-  // Send covars' columns to C
-  let covarTimeLength = covarTime.length;
-  let strArr1 = covarTime;
-  let strArr2 = covarTemperature;
-  let lengthx = strArr1.length;
-  let ptrCovarTime = Module._malloc(lengthx * 8);
-  let ptrCovarData = Module._malloc(lengthx * 8);
-  for (let i = 0; i < lengthx; i++) {
-      Module.setValue(ptrCovarTime + (i + 1) * 8, strArr1[i], 'double');
-      Module.setValue(ptrCovarData + (i + 1) * 8, strArr2[i], 'double');
+  lsodaTem = Module.cwrap('run_me', "number", inputArray)
+  buffer = Module._malloc(lengthBuffer * nByte)
+
+  /* Send covars' columns to C */
+  let covarLength = covarTime.length;
+  let covarTime_p = Module._malloc(covarLength * 8);
+  let covarData_p = Module._malloc(covarLength * 8);
+  for (let i = 0; i < covarLength; i++) {
+      Module.setValue(covarTime_p + i * 8, covarTime[i], 'double');
+      Module.setValue(covarData_p + i * 8, covarTemperature[i], 'double');
+  }
+
+  let timeAdd0 = [0].concat(times);
+  let ptrTimes = Module._malloc(timeAdd0.length  * 8);
+  for (let i = 0; i < timeAdd0.length; i++) {
+      Module.setValue(ptrTimes + i * 8, timeAdd0[i], 'double');
+  }
+
+  lsodaException = lsodaTem(lengthBuffer,covarLength, buffer,ptrTimes, covarTime_p,covarData_p, ...N, ...params)
+  if(lsodaException < 0){
+    throw 'lsoda steps taken before reaching tout'
+  } 
+  for (var i = 0; i < lengthBuffer; i++) {
+    arr.push(Module.getValue(buffer + i * nByte, 'double'))
   }
   
-  let strArr3 = [0].concat(times);
-  let ptrTimes = Module._malloc(lengthBuffer * 8);
-  for (let i = 0; i < lengthBuffer; i++) {
-      Module.setValue(ptrTimes + i * 8, strArr3[i], 'double');
-  }
-
-  lsodaException = lsodaTem(lengthBuffer, buffer,ptrTimes, ptrCovarTime,ptrCovarData, ...N, ...params, covarTimeLength)
-  for (var i = 0; i < lengthBuffer; i++) {
-    arr.push(Module.getValue(buffer+i*nByte, 'double'))
-  }
-  return arr
+  Module._free(buffer)
+  Module._free(covarTime_p)
+  Module._free(covarData_p)
+  Module._free(ptrTimes)
+  return arr;
 }
  
 
@@ -202,7 +209,7 @@ function integrate (params, times, deltaT, covarTime, covarTemperature) {
 function main() {
   let resultSet = [], result
 
-  for(let count = 1; count <= 1; count++) {
+  for(let count = 1; count <= 2; count++) {
     var params = []
     for ( let i = 0; i < fullset[0].length; i++) {
       params.push(Number(fullset[count][i]))
@@ -216,18 +223,18 @@ function main() {
       console.error(e);
     }
   }
-  // const createCsvWriter = require('csv-writer').createArrayCsvWriter;
-  // const csvWriter = createCsvWriter({
-  //   header: ['p' , 'omega' , 'delta' , 'mu_e' , 'mu_ql' , 'mu_el' , 'mu_qn' , 'mu_en' , 'mu_qa' , 'mu_ea' , 'mu_h' ,
-  //    'beta_nh' , 'beta_hl' , 'beta_hn' , 'lambda_l' , 'lambda_n' , 'lambda_a' , 'alpha' , 'f_l' , 'f_n' , 'f_a' , 'kappa' , 
-  //    'c' , 'Tf' , 'obsprob' , 'T_min_l' , 'gamma' , 'E0' , 'QL0' , 'EL_s0' , 'EL_i0' , 'QN_s0' , 'QN_i0' , 'EN_s0' , 'EN_i0' ,
-  //     'QA_s0' , 'QA_i0' , 'EA0' , 'H_s0' , 'H_i0' , 'LogLik'],
-  //   path: './tes.csv'
-  // })   
-  // csvWriter.writeRecords(resultSet)
-  //   .then(() => {
-  //   console.log('...Done')
-  // })
+  const createCsvWriter = require('csv-writer').createArrayCsvWriter;
+  const csvWriter = createCsvWriter({
+    header: ['p' , 'omega' , 'delta' , 'mu_e' , 'mu_ql' , 'mu_el' , 'mu_qn' , 'mu_en' , 'mu_qa' , 'mu_ea' , 'mu_h' ,
+     'beta_nh' , 'beta_hl' , 'beta_hn' , 'lambda_l' , 'lambda_n' , 'lambda_a' , 'alpha' , 'f_l' , 'f_n' , 'f_a' , 'kappa' , 
+     'c' , 'Tf' , 'obsprob' , 'T_min_l' , 'gamma' , 'E0' , 'QL0' , 'EL_s0' , 'EL_i0' , 'QN_s0' , 'QN_i0' , 'EN_s0' , 'EN_i0' ,
+      'QA_s0' , 'QA_i0' , 'EA0' , 'H_s0' , 'H_i0' , 'LogLik'],
+    path: './test.csv'
+  })   
+  csvWriter.writeRecords(resultSet)
+    .then(() => {
+    console.log('...Done')
+  })
 }
 
 /* Run main only when emscripten is ready */
