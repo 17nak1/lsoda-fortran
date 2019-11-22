@@ -57,3 +57,24 @@ create_pomp_model <- function(data, covars, t0,
   print("Model created.")
   return(output)
 }
+
+
+
+
+Index.H_s =1
+Index.H_i =2
+ params = c(.2,.6)
+ params
+ sumH = params[Index.H_s] + params[Index.H_i];
+ params[Index.H_s] = log(params[Index.H_s] / (1 - sumH));
+ params[Index.H_i] = log(params[Index.H_i] / (1 - sumH));
+ params
+sumH = exp(params[Index.H_s]) + exp(params[Index.H_i]);
+ params[Index.H_s] = exp(params[Index.H_s]) / (1 + sumH);
+ params[Index.H_i] = exp(params[Index.H_i]) / (1 + sumH);
+params
+ 
+ params = c(.3,.6);params
+ params[c(Index.H_s,Index.H_i)] <- log(params[c(Index.H_s,Index.H_i)] / (1 - sum(params[c(Index.H_s,Index.H_i)])));params
+ params[c(Index.H_s,Index.H_i)] <- exp(params[c(Index.H_s,Index.H_i)]) / (1 + sum(exp(params[c(Index.H_s,Index.H_i)])));params
+ 

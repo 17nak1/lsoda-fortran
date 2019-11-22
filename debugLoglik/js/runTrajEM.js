@@ -28,7 +28,7 @@ let t0 = 0;
 
 
 // Parameters that is consider always fixed
-let paramsIcFixed = snippet.statenames()
+let paramsIcFixed = []//snippet.statenames()
 let paramsFixed =[Index.p, Index.delta, Index.mu_e, Index.mu_ql, Index.mu_el, Index.mu_qn, Index.mu_en, Index.mu_qa, Index.mu_ea,
           Index.mu_h, Index.beta_nh, Index.beta_hn, Index.beta_hl, Index.alpha, Index.c, Index.Tf, Index.gamma, ...paramsIcFixed]
 
@@ -96,7 +96,11 @@ for (let i = 0; i < lines.length; i++) {
 }
 
 // Generate covars and data  
+<<<<<<< HEAD
 let covars = create.covars(startTime, endTime, dt);
+=======
+let covars = create.covars(startTime, endTime, dt)
+>>>>>>> 18ff24eef4e4e14d6b6c36a601beb3fd644922b2
 let covarTime = [], covarTemperature = []
 for (let i = 0; i < covars.length; i++) {
   covarTime.push(covars[i][0])
@@ -111,9 +115,8 @@ for (let i = 0; i < data.length; i++) {
 function traj_match (data, covarTime, covarTemperature, params, times, t0, index, place) {
   let deltaT = (1 / 52) * 365
   var estimated = []
-  
   // Index of parameters that need to be transfered
-  let temp = model.createPompModel(data, covars, t0 = 0, dt = 0.005, paramsNotrans)
+  let temp = model.createPompModel(data, covars, t0 = 0, dt = 0.005, paramsFixed)
   let logTrans = temp[0]
   let logitTrans = temp[1]
   
@@ -169,7 +172,12 @@ function integrate (params, times, deltaT, covarTime, covarTemperature) {
   let N = snippet.rInit(params)  
   let inputArray = Array(40).fill('number')
   let nByte = 8
+<<<<<<< HEAD
   let lengthBuffer = times.length 
+=======
+  let lengthBuffer = times.length  
+
+>>>>>>> 18ff24eef4e4e14d6b6c36a601beb3fd644922b2
   lsodaTem = Module.cwrap('run_me', "number", inputArray)
   buffer = Module._malloc(lengthBuffer * nByte)
 
@@ -180,6 +188,7 @@ function integrate (params, times, deltaT, covarTime, covarTemperature) {
   for (let i = 0; i < covarLength; i++) {
       Module.setValue(covarTime_p + i * 8, covarTime[i], 'double');
       Module.setValue(covarData_p + i * 8, covarTemperature[i], 'double');
+<<<<<<< HEAD
   }
 
   let timeAdd0 = [0].concat(times);
@@ -187,6 +196,16 @@ function integrate (params, times, deltaT, covarTime, covarTemperature) {
   for (let i = 0; i < timeAdd0.length; i++) {
       Module.setValue(ptrTimes + i * 8, timeAdd0[i], 'double');
   }
+=======
+  }
+
+  let timeAdd0 = [0].concat(times);
+  let ptrTimes = Module._malloc(timeAdd0.length  * 8);
+  for (let i = 0; i < timeAdd0.length; i++) {
+      Module.setValue(ptrTimes + i * 8, timeAdd0[i], 'double');
+  }
+
+>>>>>>> 18ff24eef4e4e14d6b6c36a601beb3fd644922b2
   lsodaException = lsodaTem(lengthBuffer,covarLength, buffer,ptrTimes, covarTime_p,covarData_p, ...N, ...params)
   if(lsodaException < 0){
     throw 'lsoda steps taken before reaching tout'
@@ -200,14 +219,23 @@ function integrate (params, times, deltaT, covarTime, covarTemperature) {
   Module._free(covarData_p)
   Module._free(ptrTimes)
   return arr;
+<<<<<<< HEAD
 } 
+=======
+}
+ 
+>>>>>>> 18ff24eef4e4e14d6b6c36a601beb3fd644922b2
 
 
 /** Main program entry point */
 function main() {
   let resultSet = [], result
 
+<<<<<<< HEAD
   for(let count = 1; count <= 300; count++) {
+=======
+  for(let count = 1; count <= 2; count++) {
+>>>>>>> 18ff24eef4e4e14d6b6c36a601beb3fd644922b2
     var params = []
     for ( let i = 0; i < fullset[0].length; i++) {
       params.push(Number(fullset[count][i]))
@@ -227,7 +255,11 @@ function main() {
      'beta_nh' , 'beta_hl' , 'beta_hn' , 'lambda_l' , 'lambda_n' , 'lambda_a' , 'alpha' , 'f_l' , 'f_n' , 'f_a' , 'kappa' , 
      'c' , 'Tf' , 'obsprob' , 'T_min_l' , 'gamma' , 'E0' , 'QL0' , 'EL_s0' , 'EL_i0' , 'QN_s0' , 'QN_i0' , 'EN_s0' , 'EN_i0' ,
       'QA_s0' , 'QA_i0' , 'EA0' , 'H_s0' , 'H_i0' , 'LogLik'],
+<<<<<<< HEAD
     path: './oct15.csv'
+=======
+    path: './test.csv'
+>>>>>>> 18ff24eef4e4e14d6b6c36a601beb3fd644922b2
   })   
   csvWriter.writeRecords(resultSet)
     .then(() => {

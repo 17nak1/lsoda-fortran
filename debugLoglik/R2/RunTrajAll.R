@@ -1,6 +1,6 @@
 rm(list=ls())
 
-setwd("~/Git/TBE/R2")
+setwd("~/Git/lsoda-fortran/debugLoglik/R2")
 
 library("digest")
 library("mvtnorm")
@@ -20,7 +20,7 @@ endTime <- 2008
 
 
 total.cores <-1# c(5e2)       # Total number of cores being used for the phase
-no.points <-1# c(1e3)         # Number of points per region
+no.points <-10# c(1e3)         # Number of points per region
 est.icstart <- c(0)         # Are there no initial conditions given? 0-Given, 1-No, 2-TrajMatch
 
 no.cores <- total.cores
@@ -33,7 +33,7 @@ dt <- 0.005 # Step size
 params.ic.fixed <- c()
 params.fixed <- c("p", "delta",
                   "mu_e","mu_ql","mu_el","mu_qn","mu_en","mu_qa","mu_ea","mu_h",
-                  "beta_nh","beta_hl","beta_hn","alpha", "c", "Tf","gamma", params.ic.fixed)
+                  "beta_nh","beta_hl","beta_hn", "Tf", params.ic.fixed)
 # Parameters that are not to be transformed
 params.notrans <- params.fixed
 
@@ -42,7 +42,7 @@ source("ModelSnippet.R")
 run = 1
 # for (run in runs) {
   if (run==1) {
-    ParamSetFile <- paste0("test2.csv")
+    ParamSetFile <- paste0("gamma.csv")
     param.prof <- NULL  
   } else {
     ParamSetFile <- paste0("ParamSet_run",run,".csv")    

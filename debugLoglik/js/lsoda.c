@@ -3034,6 +3034,7 @@ int run_me(int lengthBuffer, double covarLength, double * yout, double * times, 
   for (iout = 0; iout < lengthBuffer; iout++) {
     t = times[iout];
     tout = times[iout + 1];
+    // printf("%d,%f, %f,%d\n",iout, t, tout,lengthBuffer);
     lsoda(skel, neq, y, &t, tout, itol, rtol, atol, itask, &istate, iopt, jt,
           iwork1, iwork2, iwork5, iwork6, iwork7, iwork8, iwork9,
           rwork1, rwork5, rwork6, rwork7, data, covar1_p, covar2_p);
