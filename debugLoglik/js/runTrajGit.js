@@ -1,5 +1,5 @@
 /**
- *  @file       runTraj.js        
+ *  @file       runTrajEm.js        
  *              This function attempts to match trajectories of a model's deterministic skeleton to data.
  *              Trajectory matching is equivalent to maximum likelihood estimatedation under the assumption 
  *              that process noise is entirely absent, i.e., that all stochasticity is measurement error.
@@ -8,6 +8,7 @@
  *  @author     Nazila Akhavan, nazila@kingsds.network
  *  @date       July 2019
  */
+
 
 let snippet = require('./modelSnippet.js')
 let model = require('./createModel')
@@ -18,6 +19,7 @@ let DetermineRun = require('./determineRun')
 let fmin    = require('fmin')
 let fs = require('fs')
 const Module = require('./lsoda.js')
+let optimizer = require('./subplex/subplex.js');
 /************************************************************ Will be defined in ui ************************************************/
 let dt = 0.005 // Step size only use in covar
 let startTime = 1991
@@ -27,16 +29,15 @@ let run = 1;
 let t0 = 0;
 
 
-// Parameters that is consider always fixed
+/* Parameters that is consider always fixed */
 let paramsIcFixed = snippet.statenames()
 let paramsFixed =[Index.p, Index.delta, Index.mu_e, Index.mu_ql, Index.mu_el, Index.mu_qn, Index.mu_en, Index.mu_qa, Index.mu_ea,
-          Index.mu_h, Index.beta_nh, Index.beta_hn, Index.beta_hl, Index.alpha, Index.c, Index.Tf, Index.gamma, ...paramsIcFixed]
+          Index.mu_h, Index.beta_nh, Index.beta_hl, Index.beta_hn, Index.alpha, Index.c, Index.Tf, Index.gamma]
 
-// Parameters not to be transformed
-let paramsNotrans = [].concat(paramsFixed)              
+/* paramsNotrans := (paramsFixed)  */             
 let ParamSetFile, paramProf
 if (run === 1) {
-  ParamSetFile = "../data/ParamSet_TBE3.csv" 
+  ParamSetFile = "./ParamSet_TBE3.csv"
   paramProf = null 
 } else {
   ParamSetFile = `ParamSet_run${run}.csv`    
@@ -47,9 +48,10 @@ paramsFixed = [...paramsFixed, paramProf]
 paramsNoic = [Index.p, Index.omega, Index.delta, Index.mu_e, Index.mu_ql, Index.mu_el, Index.mu_qn, Index.mu_en, Index.mu_qa,
               Index.mu_ea, Index.mu_h, Index.beta_nh, Index.beta_hl,Index.beta_hn, Index.lambda_l, Index.lambda_n, Index.lambda_a,
               Index.alpha, Index.f_l, Index.f_n, Index.f_a,  Index.kappa, Index.c,Index.Tf, Index.obsprob, Index.T_min_l,Index.gamma]
+
 paramsIc  = snippet.statenames()
 
-// paramsFit =  paramsNoic - paramfixed
+// paramsFit :=  paramsNoic - paramfixed
 let paramsFit = []
 let flag = 0
 for (let i = 0; i < paramsNoic.length; i++) {
@@ -81,12 +83,18 @@ for (let i = 0; i < paramsIc.length; i++) {
 flag = 0
 }
 
+let temp = model.createPompModel(data, covars, 0, 0.005, paramsFixed)
+/* Index of parameters that need to be transfered */
+let logTrans = temp[0]
+let logitTrans = temp[1]
+temp = [...temp[0], ...temp[1]]
+let estimatedIndex = temp.sort()
 let index = Array(40).fill(0)
-let estimatedIndex = [...paramsFit, ...paramsIcFit]
 for ( let i = 0; i < estimatedIndex.length; i++) {
   index[estimatedIndex[i]] = 1
 }
 let place = estimatedIndex
+/* Read points set*/
 let fullset = []
 var set1 = fs.readFileSync(ParamSetFile).toString()
 var lines = set1.split('\n')
@@ -106,94 +114,97 @@ let times = []
 for (let i = 0; i < data.length; i++) {
   times.push(data[i][0])
 }
+console.log(temp)
 /**************************************************************************************************************************************************/
-function traj_match (data, covarTime, covarTemperature, params, times, t0, index, place) {
+function traj_match (data, params, times, index, place) {
   let deltaT = (1 / 52) * 365
   var estimated = []
-  
-  // Index of parameters that need to be transfered
-  let temp = model.createPompModel(data, covars, t0 = 0, dt = 0.005, paramsNotrans)
-  let logTrans = temp[0]
-  let logitTrans = temp[1]
-  
-  // Change the parameters' scale 
-  model.toEstimationScale(params, logTrans, logitTrans)
- 
-  // Choose those that should be estimated.
+  var states = []
+  var data1 = []
+  var data2 = []
+  var solution
+  /* Change the parameters' scale  */
+  params = model.toEstimationScale(params, logTrans, logitTrans)
+
+  /* Choose values that should be estimated */
   for (let i = 0; i < index.length; i++) {
     if (index[i] === 1 ) {
       estimated.push(params[i])
     }
   }
+  /* Optimizer function using Nelder Mead method */
+  optimizer.f = logLik
+  optimizer.x0 = estimated
+  optimizer.tol = 0.1
 
-  let lo = logLik (estimated)
-  
-  //* calculate log likelihood
-  function logLik (estimated) {
+  // solution = optimizer.run()
+  // for (let i = 0; i < optimizer.x0.length; i++) {
+  //   params[place[i]] = solution[0][i]
+  // }
+  // params = model.fromEstimationScale(params, logTrans, logitTrans)
+
+  /* calculate log likelihood */
+  function logLik (n,estimated) {
     var likvalue = 0
     var loglik = 0
-    var rho 
-    var psi
+    var tLength = 936 
     var simHarranged = []
-    for (let i = 0; i < estimated.length; i++) {
-      params[place[i]] = estimated[i]
+    var simH
+    for (let i = 0; i < n; i++) {  // fortran array start at one => estimated[i+1] 
+      params[place[i]] = estimated[i+1]
     }
 
-    // Return parameters' scale to original
-    model.fromEstimationScale(params, logTrans, logitTrans)
-    // console.log(covars[0])
-    var simH = integrate(params, times, deltaT,covarTime, covarTemperature)
-    simHarranged[0] = simH[t0]
-    var aa = [[0,0]]
+    /* Return parameters' scale to original */
+    params = model.fromEstimationScale(params, logTrans, logitTrans)
+    simH = integrate(params, tLength, deltaT)
+    simHarranged[0] = simH[0]
     for ( let i = 1; i < simH.length; i++) {
-      simHarranged[i] = simH[i] - simH[i - 1]
-      aa.push([i , simHarranged[i]])
+      simHarranged[i -1] = simH[i] - simH[i - 1]
     }
-    
+  
     for (let i = 0; i < simHarranged.length; i++) {
-      likvalue = snippet.dObs(params[Index.obsprob], simHarranged[i], data[i][1], 1)//;ar.push([likvalue])
+      likvalue = snippet.dObs(params[Index.obsprob], simHarranged[i], data[i][1], 1)
       loglik = loglik + likvalue
     }
-    console.log(params, loglik)
-    return [-(loglik).toFixed(6)]
+    // console.log("ll",params,loglik)
+    return -(loglik).toFixed(6)
   }
-  return[...params, -lo]
+  console.log(params, -solution[1])
+  return[...params, -solution[1]]
 }
- //* ODE solver
-function integrate (params, times, deltaT, covarTime, covarTemperature) {
+ /* ODE solver using emscripten */
+function integrate (params, tLength, deltaT) {
+  let lsodaException = 0
   let arr = []
-  let count
-  let N = snippet.rInit(params)
-    
-  let inputArray = Array(42).fill('number') 
-  let lsodaTem = Module.cwrap('run_me', "number", inputArray);
+  let buffer
+  let N = snippet.rInit(params)  
+  let inputArray = Array(42).fill('number')
   let nByte = 8
-  let lengthBuffer = times.length// one more because of y[t0]
-  let buffer = Module._malloc(lengthBuffer * nByte)// pointer to an empty array to carry results from C to JS
+  let lengthBuffer = tLength + 1 // extra space for t0  
 
-  // Send covars' columns to C
-  let covarTimeLength = covarTime.length;
-  let ptrCovarTime = Module._malloc(covarTimeLength * 8);
-  let ptrCovarData = Module._malloc(covarTimeLength * 8);
-  for (let i = 0; i < covarTimeLength; i++) {
-      Module.setValue(ptrCovarTime + (i + 1) * 8, covarTime[i], 'double');
-      Module.setValue(ptrCovarData + (i + 1) * 8, covarTemperature[i], 'double');
+  lsodaTem = Module.cwrap('run_me', "number", inputArray)
+  buffer = Module._malloc(lengthBuffer * nByte)
+  // send array to C
+  var strArr = [1,2,3];
+  let lengthx = strArr.length;
+  var ptrArr = Module._malloc(lengthx * 8);
+  for (var i = 0; i < lengthx; i++) {
+      var len = strArr[i].length + 1;
+      var ptr = Module._malloc(len);
+      Module.setValue(ptrArr + (i + 1) * 8, strArr[i], 'double');
   }
-  
-  let strArr3 = [0].concat(times);
-  let ptrTimes = Module._malloc(lengthBuffer * 8);
-  for (let i = 0; i < strArr3.length; i++) {
-      Module.setValue(ptrTimes + i * 8, strArr3[i], 'double');
+  lsodaException = lsodaTem(lengthBuffer, buffer, ...N, ...params, deltaT, ptrArr, lengthx)
+  if(lsodaException < 0){
+    Module._free(buffer)
+    throw 'lsoda steps taken before reaching tout'
   }
-
-  lsodaException = lsodaTem(lengthBuffer, buffer,ptrTimes, ptrCovarTime,ptrCovarData, ...N, ...params, covarTimeLength)
   for (var i = 0; i < lengthBuffer; i++) {
-    arr.push(Module.getValue(buffer+i*nByte, 'double'))
+    arr.push(Module.getValue(buffer + i * nByte, 'double'))
   }
+  Module._free(buffer)
   return arr
 }
  
-
 
 /** Main program entry point */
 function main() {
@@ -205,7 +216,7 @@ function main() {
       params.push(Number(fullset[count][i]))
     }
     try{
-      result = traj_match (data, covarTime, covarTemperature, params, times, t0, index, place);   
+      result = traj_match (data, params, times, index, place);   
       resultSet.push(result);
     }
     catch(e) {
@@ -213,22 +224,24 @@ function main() {
       console.error(e);
     }
   }
-  // const createCsvWriter = require('csv-writer').createArrayCsvWriter;
-  // const csvWriter = createCsvWriter({
-  //   header: ['p' , 'omega' , 'delta' , 'mu_e' , 'mu_ql' , 'mu_el' , 'mu_qn' , 'mu_en' , 'mu_qa' , 'mu_ea' , 'mu_h' ,
-  //    'beta_nh' , 'beta_hl' , 'beta_hn' , 'lambda_l' , 'lambda_n' , 'lambda_a' , 'alpha' , 'f_l' , 'f_n' , 'f_a' , 'kappa' , 
-  //    'c' , 'Tf' , 'obsprob' , 'T_min_l' , 'gamma' , 'E0' , 'QL0' , 'EL_s0' , 'EL_i0' , 'QN_s0' , 'QN_i0' , 'EN_s0' , 'EN_i0' ,
-  //     'QA_s0' , 'QA_i0' , 'EA0' , 'H_s0' , 'H_i0' , 'LogLik'],
-  //   path: './tes.csv'
-  // })   
-  // csvWriter.writeRecords(resultSet)
-  //   .then(() => {
-  //   console.log('...Done')
-  // })
-}
+  const createCsvWriter = require('csv-writer').createArrayCsvWriter;
+  const csvWriter = createCsvWriter({
+    header: ['p' , 'omega' , 'delta' , 'mu_e' , 'mu_ql' , 'mu_el' , 'mu_qn' , 'mu_en' , 'mu_qa' , 'mu_ea' , 'mu_h' ,
+     'beta_nh' , 'beta_hl' , 'beta_hn' , 'lambda_l' , 'lambda_n' , 'lambda_a' , 'alpha' , 'f_l' , 'f_n' , 'f_a' , 'kappa' , 
+     'c' , 'Tf' , 'obsprob' , 'T_min_l' , 'gamma' , 'E0' , 'QL0' , 'EL_s0' , 'EL_i0' , 'QN_s0' , 'QN_i0' , 'EN_s0' , 'EN_i0' ,
+      'QA_s0' , 'QA_i0' , 'EA0' , 'H_s0' , 'H_i0' , 'LogLik'],
+    path: './resTBE3_200.csv'
+  })   
+  csvWriter.writeRecords(resultSet)
+    .then(() => {
+    console.log('...Done')
+  })
+}    
+
 
 /* Run main only when emscripten is ready */
 Module.onRuntimeInitialized = main
 
 /*emcc lsoda.c -o lsoda.js -s  EXPORTED_FUNCTIONS='["_run_me"]' -s EXTRA_EXPORTED_RUNTIME_METHODS='["ccall", "cwrap","getValue"]' -s EXIT_RUNTIME=1
 */
+
